@@ -8,6 +8,8 @@ section .data
     colon db ": ", 0
     newline db 10, 0
     error_msg db "Invalid input. Please try again.", 10, 0
+    exit_msg db "Exiting the program. Goodbye!", 10, 0
+    no_books_msg db "No books in the library.", 10, 0
 
 section .bss
     choice resb 2
@@ -27,7 +29,7 @@ main_loop:
     mov eax, 4
     mov ebx, 1
     mov ecx, prompt
-    mov edx, 55
+    mov edx, 70
     int 0x80
 
     ; Get user choice
@@ -178,8 +180,8 @@ display_books:
     .no_books:
         mov eax, 4
         mov ebx, 1
-        mov ecx, newline
-        mov edx, 1
+        mov ecx, no_books_msg
+        mov edx, 23
         int 0x80
 
     .end:
@@ -228,6 +230,13 @@ calculate_total:
     jmp main_loop
 
 exit_program:
+    ; Display exit message
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, exit_msg
+    mov edx, 29
+    int 0x80
+
     ; Exit the program
     mov eax, 1
     xor ebx, ebx
