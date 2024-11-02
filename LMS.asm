@@ -1,7 +1,10 @@
 section .data
-    prompt db "1. Add Book, 2. Display Books, 3. Calculate Total Books, 4. Exit: ", 0
+    prompt db "1. Add Book, 2. Display Books, 3. Calculate Total Books, 4. Delete Book, 5. Exit: ", 0
     book_prompt db "Enter book title (max 50 chars): ", 0
+    delete_prompt db "Enter book number to delete: ", 0
     book_added db "Book added successfully!", 10, 0
+    book_deleted db "Book deleted successfully!", 10, 0
+    delete_error db "Invalid book number. Please try again.", 10, 0
     total_books db "Total books: ", 0
     display_books_msg db "Displaying books:", 10, 0
     book_number db "Book ", 0
@@ -17,6 +20,7 @@ section .bss
     books resb 1020  ; Space for 20 books (50 chars title + 1 newline)
     book_count resb 1
     display_buffer resb 4  ; Buffer for displaying numbers
+    delete_choice resb 3   ; Buffer for delete book number input
 
 section .text
     global _start
@@ -29,7 +33,7 @@ main_loop:
     mov eax, 4
     mov ebx, 1
     mov ecx, prompt
-    mov edx, 70
+    mov edx, 79
     int 0x80
 
     ; Get user choice
@@ -48,6 +52,8 @@ main_loop:
     cmp al, '3'
     je calculate_total
     cmp al, '4'
+    je delete_book
+    cmp al, '5'
     je exit_program
 
     ; Invalid input
@@ -101,6 +107,94 @@ add_book:
     mov edx, 25
     int 0x80
 
+    jmp main_loop
+
+delete_book:
+    ; Check if there are any books
+    mov al, [book_count]
+    test al, al
+    jz .no_books
+
+    ; Display delete prompt
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, delete_prompt
+    mov edx, 26
+    int 0x80
+
+    ; Get book number to delete
+    mov eax, 3
+    mov ebx, 0
+    mov ecx, delete_choice
+    mov edx, 3
+    int 0x80
+
+    ; Convert input to number
+    movzx ecx, byte [delete_choice]
+    sub ecx, '0'
+    
+    ; Validate input
+    cmp ecx, 1
+    jl .invalid_number
+    cmp cl, [book_count]
+    jg .invalid_number
+
+    ; Calculate source and destination addresses
+    dec ecx             ; Convert to 0-based index
+    mov eax, 51        ; Book size
+    mul ecx            ; eax = offset of book to delete
+    mov edi, books     ; Destination
+    add edi, eax
+    
+    ; Calculate source address (next book)
+    mov esi, edi
+    add esi, 51
+    
+    ; Calculate remaining books to move
+    movzx eax, byte [book_count]
+    sub eax, ecx       ; Total books - current position
+    dec eax            ; Subtract 1 for the book being deleted
+    mov ecx, eax
+    
+    ; If there are books to move, move them
+    test ecx, ecx
+    jz .skip_move
+    
+    ; Move remaining books
+    .move_loop:
+        push ecx
+        mov ecx, 51
+        rep movsb
+        pop ecx
+        loop .move_loop
+        
+    .skip_move:
+    ; Decrement book count
+    dec byte [book_count]
+    
+    ; Display success message
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, book_deleted
+    mov edx, 25
+    int 0x80
+    
+    jmp main_loop
+
+.invalid_number:
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, delete_error
+    mov edx, 35
+    int 0x80
+    jmp main_loop
+
+.no_books:
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, no_books_msg
+    mov edx, 23
+    int 0x80
     jmp main_loop
 
 display_books:
